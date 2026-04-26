@@ -7,6 +7,37 @@ import {
   type UploadedStudyFile,
 } from "./studymate.server";
 
+const MAX_UPLOAD_BYTES = 8_000_000;
+const ALLOWED_DATA_URL_TYPES = new Set([
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/json",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
+]);
+
+function validateDataUrlPayload(file: UploadedStudyFile) {
+  const match = file.dataUrl.match(/^data:([^;,]+);base64,([A-Za-z0-9+/=\s]+)$/);
+  if (!match) throw new Error("Invalid file payload.");
+
+  const [, mimeType, encodedPayload] = match;
+  const normalizedType = mimeType.toLowerCase();
+  if (!ALLOWED_DATA_URL_TYPES.has(normalizedType)) {
+    throw new Error(`${file.name} uses an unsupported file type.`);
+  }
+
+  const base64Length = encodedPayload.replace(/\s/g, "").length;
+  const actualBytes = Math.floor((base64Length * 3) / 4) - (encodedPayload.endsWith("==") ? 2 : encodedPayload.endsWith("=") ? 1 : 0);
+  if (actualBytes < 1) throw new Error(`${file.name} is empty.`);
+  if (actualBytes > MAX_UPLOAD_BYTES) throw new Error(`${file.name} exceeds 8MB.`);
+
+  return { actualBytes, mimeType: normalizedType };
+}
+
 function validateSessionKey(value: unknown) {
   if (typeof value !== "string" || !/^[a-zA-Z0-9_-]{12,80}$/.test(value)) {
     throw new Error("Invalid study session.");
@@ -24,12 +55,11 @@ export const uploadStudyFiles = createServerFn({ method: "POST" })
       sessionKey,
       files: input.files.map((file) => {
         if (!file.name || file.name.length > 220) throw new Error("Invalid file name.");
-        if (!file.dataUrl.startsWith("data:")) throw new Error("Invalid file payload.");
-        if (file.size > 8_000_000) throw new Error(`${file.name} is larger than 8MB.`);
+        const { actualBytes, mimeType } = validateDataUrlPayload(file);
         return {
           name: file.name,
-          type: file.type || "unknown",
-          size: file.size,
+          type: mimeType,
+          size: actualBytes,
           dataUrl: file.dataUrl,
           extractedText: (file.extractedText ?? "").slice(0, 450_000),
         };
