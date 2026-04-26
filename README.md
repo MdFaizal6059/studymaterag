@@ -107,7 +107,11 @@ The answer is generated based on the relevant content retrieved from the uploade
 
 ## 🔗 Project Access
 
-> Add your Lovable app link here (if available)
+> Link to access the project: https://studymaterag.lovable.app/
+
+## Demo Video
+
+> Link to access the live Demo Video: https://drive.google.com/file/d/1ZwDf6cASaHqbatxzGm2ZbUR1ploV2Ft_/view?usp=sharing
 
 ---
 
